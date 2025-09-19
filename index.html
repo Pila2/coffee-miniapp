@@ -8,7 +8,7 @@
   <style>
     :root{
       --bg:#0f1113; --card:#15181c; --stroke:#1f2328; --muted:#94a3b8; --text:#eaecee;
-      --primary:#3b82f6; --chip:#30363d; --chip-active:#1e293b; --ok:#16a34a;
+      --primary:#3b82f6; --chip:#30363d; --chip-active:#1e293b;
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial}
@@ -72,7 +72,7 @@
       <div class="badge">Корзина</div>
       <div id="cartList" style="margin-top:10px"></div>
 
-      <!-- Способ получения -->
+      <!-- Получение -->
       <div style="margin-top:12px">
         <div class="badge">Получение</div>
         <div class="row" style="margin:8px 0">
@@ -82,10 +82,7 @@
 
         <div id="pickupBlock" style="display:none; gap:8px; margin:6px 0">
           <div class="muted" style="margin-bottom:6px">Точка самовывоза:</div>
-          <div class="row" style="flex-wrap:wrap">
-            <!-- заполним программно по PICKUP_POINTS -->
-            <div id="pickupPoints" class="row" style="gap:8px;flex-wrap:wrap"></div>
-          </div>
+          <div id="pickupPoints" class="row" style="gap:8px;flex-wrap:wrap"></div>
         </div>
 
         <div id="deliveryBlock" style="display:none; margin:6px 0">
@@ -151,14 +148,12 @@
     {title:"Сироп карамель", price:150},
   ];
 
-  // Точки самовывоза
   const PICKUP_POINTS = [
     {id:"center", title:"Центр — ул. Байтурсынова, 10"},
     {id:"uni",    title:"Университет — пр. Абая, 25"},
     {id:"mall",   title:"ТРЦ — пр. Аль-Фараби, 3"},
   ];
 
-  // Промо-акции (микро-карточки)
   const PROMOS = [
     {code:"WELCOME10", title:"Добро пожаловать!", img:"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1200&auto=format&fit=crop", discountPct:10},
     {code:"LATTE5",    title:"-5% на Латте", img:"https://images.unsplash.com/photo-1529070538774-1843cb3265df?q=80&w=1200&auto=format&fit=crop", discountPct:5},
@@ -173,7 +168,7 @@
     addons: [],
     qty: 1,
     cart: [],
-    fulfillment: { type: "pickup", pickup_point: PICKUP_POINTS[0] }, // по умолчанию
+    fulfillment: { type: "pickup", pickup_point: PICKUP_POINTS[0] },
     promo: null,   // {code, discountPct}
     comment: ""
   };
@@ -187,18 +182,11 @@
     return p;
   }
   function cartSubtotal(){ return state.cart.reduce((s,x)=>s+x.line_total,0); }
-  function calcDiscount(subtotal){
-    if (!state.promo) return 0;
-    return Math.round(subtotal * (state.promo.discountPct/100));
-  }
-  function cartTotal(){
-    const sub = cartSubtotal();
-    return sub - calcDiscount(sub);
-  }
+  function calcDiscount(sub){ return state.promo ? Math.round(sub*(state.promo.discountPct/100)) : 0; }
+  function cartTotal(){ const s=cartSubtotal(); return s - calcDiscount(s); }
   function showToast(msg="Готово"){
     const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+    t.textContent = msg; t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
   }
 
   // ===== Promos =====
@@ -210,249 +198,149 @@
         <div style="font-weight:700;margin-top:6px">${p.title}</div>
         <div class="tag">−${p.discountPct}%</div>
         <div style="margin-top:6px">
-          <button class="btn" onclick='applyPromo(${JSON.stringify(p).replace(/"/g,"&quot;")})'>
-            Применить
-          </button>
+          <button class="btn" onclick='applyPromo(${JSON.stringify(p).replace(/"/g,"&quot;")})'>Применить</button>
         </div>
       </div>
     `).join("");
   }
-  function applyPromo(p){
-    state.promo = p;
-    renderCart();
-    showToast(`Промокод применён: −${p.discountPct}%`);
-    try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
-  }
+  function applyPromo(p){ state.promo=p; renderCart(); showToast(`Промокод: −${p.discountPct}%`); try{tg?.HapticFeedback?.impactOccurred?.("light")}catch{} }
 
   // ===== Catalog =====
   function selectCategory(cat){
-    state.category = cat;
-    state.selectedIdx = null;
-    state.size = (cat==="coffee") ? "m" : null;
-    state.addons = [];
-    state.qty = 1;
+    state.category = cat; state.selectedIdx=null; state.size=(cat==="coffee")?"m":null; state.addons=[]; state.qty=1;
     renderItems(); renderDetails();
   }
-
   function renderItems(){
-    const items = MENU[state.category] || [];
-    const box = document.getElementById("items");
-    if (!items.length){ box.innerHTML = "<div class='muted'>Ассортимент пуст</div>"; return; }
-
-    box.innerHTML = items.map((it, i)=>`
+    const items = MENU[state.category]||[]; const box=document.getElementById("items");
+    if (!items.length){ box.innerHTML="<div class='muted'>Ассортимент пуст</div>"; return; }
+    box.innerHTML = items.map((it,i)=>`
       <div class="line">
         <div style="display:flex;gap:10px;align-items:center">
           <img class="mini" src="${IMAGES[it.name]||'https://placehold.co/112x80'}" alt="${it.name}">
-          <div>
-            <div style="font-weight:600">${it.name}</div>
-            <div class="muted">${money(it.price)}</div>
-          </div>
+          <div><div style="font-weight:600">${it.name}</div><div class="muted">${money(it.price)}</div></div>
         </div>
         <button class="btn" onclick="selectItem(${i})">Выбрать</button>
       </div>
     `).join("");
   }
-
-  function selectItem(idx){
-    state.selectedIdx = idx;
-    state.size = (state.category==="coffee") ? (state.size||"m") : null;
-    state.addons = [];
-    state.qty = 1;
-    renderDetails();
-  }
+  function selectItem(idx){ state.selectedIdx=idx; state.size=(state.category==="coffee")?(state.size||"m"):null; state.addons=[]; state.qty=1; renderDetails(); }
 
   // ===== Details =====
-  function toggleSize(k){ state.size = k; renderDetails(); }
-  function toggleAddon(i){
-    const pos = state.addons.indexOf(i);
-    if (pos>=0) state.addons.splice(pos,1); else state.addons.push(i);
-    renderDetails();
-  }
-  function changeQty(d){ state.qty = Math.max(1,(state.qty||1)+d); renderDetails(); }
-
+  function toggleSize(k){ state.size=k; renderDetails(); }
+  function toggleAddon(i){ const p=state.addons.indexOf(i); if(p>=0) state.addons.splice(p,1); else state.addons.push(i); renderDetails(); }
+  function changeQty(d){ state.qty=Math.max(1,(state.qty||1)+d); renderDetails(); }
   function renderDetails(){
-    const el = document.getElementById("details");
-    const items = MENU[state.category] || [];
-    if (state.selectedIdx===null || !items[state.selectedIdx]){
-      el.innerHTML = "<div class='muted'>Выберите товар</div>"; return;
-    }
-    const it = items[state.selectedIdx];
-    const unit = calcUnitPrice(it.price, state.size, state.addons);
-
-    const img = IMAGES[it.name] || "https://placehold.co/800x500";
-    const sizes = (state.category==="coffee") ? `
-      <div class="row" style="margin:10px 0">
-        ${Object.keys(SIZES).map(k=>{
-          const active = (state.size===k)?"chip active":"chip";
-          return `<div class="${active}" onclick="toggleSize('${k}')">${SIZES[k].title}</div>`;
-        }).join("")}
-      </div>` : "";
-
-    const addons = (state.category==="coffee" && ADDONS.length) ? `
-      <div class="row" style="flex-wrap:wrap;margin:6px 0 10px">
-        ${ADDONS.map((a,i)=>{
-          const active = state.addons.includes(i)?"chip active":"chip";
-          return `<div class="${active}" onclick="toggleAddon(${i})">${a.title} (+${a.price}₸)</div>`;
-        }).join("")}
-      </div>` : "";
-
-    el.innerHTML = `
+    const el=document.getElementById("details"); const items=MENU[state.category]||[];
+    if (state.selectedIdx===null || !items[state.selectedIdx]){ el.innerHTML="<div class='muted'>Выберите товар</div>"; return; }
+    const it=items[state.selectedIdx]; const unit=calcUnitPrice(it.price, state.size, state.addons); const img=IMAGES[it.name]||"https://placehold.co/800x500";
+    const sizes=(state.category==="coffee")?`
+      <div class="row" style="margin:10px 0">${Object.keys(SIZES).map(k=>{
+        const a=(state.size===k)?"chip active":"chip"; return `<div class="${a}" onclick="toggleSize('${k}')">${SIZES[k].title}</div>`;
+      }).join("")}</div>`:"";
+    const addons=(state.category==="coffee" && ADDONS.length)?`
+      <div class="row" style="flex-wrap:wrap;margin:6px 0 10px">${ADDONS.map((a,i)=>{
+        const act=state.addons.includes(i)?"chip active":"chip"; return `<div class="${act}" onclick="toggleAddon(${i})">${a.title} (+${a.price}₸)</div>`;
+      }).join("")}</div>`:"";
+    el.innerHTML=`
       <img class="item" src="${img}" alt="${it.name}">
       <div style="margin-top:10px;font-weight:700">${it.name}</div>
       <div class="muted">Базовая цена: ${money(it.price)}</div>
-      ${sizes}
-      ${addons}
+      ${sizes}${addons}
       <div class="qty" style="margin:8px 0 6px">
-        <button class="btn" onclick="changeQty(-1)">–</button>
-        <div>${state.qty}</div>
-        <button class="btn" onclick="changeQty(1)">+</button>
+        <button class="btn" onclick="changeQty(-1)">–</button><div>${state.qty}</div><button class="btn" onclick="changeQty(1)">+</button>
       </div>
       <div style="margin:6px 0">Цена за 1: <b>${money(unit)}</b></div>
-      <button class="btn primary" style="width:100%;padding:10px" onclick="addToCart()">Добавить в корзину</button>
-    `;
+      <button class="btn primary" style="width:100%;padding:10px" onclick="addToCart()">Добавить в корзину</button>`;
   }
-
   function addToCart(){
-    const items = MENU[state.category] || [];
-    if (state.selectedIdx===null || !items[state.selectedIdx]) return;
-    const it = items[state.selectedIdx];
-    const unit = calcUnitPrice(it.price, state.size, state.addons);
-
-    const key = JSON.stringify({name:it.name, size:state.category==="coffee"?state.size:null, addons:[...state.addons].sort()});
-    const found = state.cart.find(x=>x._key===key);
-    if (found){
-      found.qty += state.qty;
-      found.line_total = found.unit_price * found.qty;
-    }else{
-      state.cart.push({
-        _key:key,
-        name: it.name,
-        size: state.category==="coffee" ? state.size : null,
-        addons: state.category==="coffee" ? state.addons.map(i=>ADDONS[i].title) : [],
-        qty: state.qty,
-        unit_price: unit,
-        line_total: unit * state.qty,
-        img: IMAGES[it.name] || "https://placehold.co/112x80"
-      });
+    const items=MENU[state.category]||[]; if (state.selectedIdx===null || !items[state.selectedIdx]) return;
+    const it=items[state.selectedIdx]; const unit=calcUnitPrice(it.price, state.size, state.addons);
+    const key=JSON.stringify({name:it.name, size:(state.category==="coffee"?state.size:null), addons:[...state.addons].sort()});
+    const found=state.cart.find(x=>x._key===key);
+    if (found){ found.qty+=state.qty; found.line_total=found.unit_price*found.qty; }
+    else {
+      state.cart.push({_key:key, name:it.name, size:(state.category==="coffee"?state.size:null),
+        addons:(state.category==="coffee"?state.addons.map(i=>ADDONS[i].title):[]),
+        qty:state.qty, unit_price:unit, line_total:unit*state.qty, img:IMAGES[it.name]||"https://placehold.co/112x80"});
     }
-    renderCart();
-    try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
+    renderCart(); try{tg?.HapticFeedback?.impactOccurred?.("light")}catch{}
   }
 
   // ===== Fulfillment =====
   function setFulfillment(type){
     if (type==="pickup"){
-      state.fulfillment = { type:"pickup", pickup_point: state.fulfillment.pickup_point || PICKUP_POINTS[0] };
-      document.getElementById("pickupBlock").style.display = "block";
-      document.getElementById("deliveryBlock").style.display = "none";
+      state.fulfillment={type:"pickup", pickup_point: state.fulfillment.pickup_point || PICKUP_POINTS[0]};
+      document.getElementById("pickupBlock").style.display="block";
+      document.getElementById("deliveryBlock").style.display="none";
       document.getElementById("chipPickup").classList.add("active");
       document.getElementById("chipDelivery").classList.remove("active");
-    }else{
-      state.fulfillment = { type:"delivery", address: document.getElementById("addr").value || "" };
-      document.getElementById("pickupBlock").style.display = "none";
-      document.getElementById("deliveryBlock").style.display = "block";
+    } else {
+      state.fulfillment={type:"delivery", address: document.getElementById("addr").value || ""};
+      document.getElementById("pickupBlock").style.display="none";
+      document.getElementById("deliveryBlock").style.display="block";
       document.getElementById("chipPickup").classList.remove("active");
       document.getElementById("chipDelivery").classList.add("active");
     }
   }
   function renderPickupPoints(){
-    const box = document.getElementById("pickupPoints");
+    const box=document.getElementById("pickupPoints");
     box.innerHTML = PICKUP_POINTS.map(p=>{
-      const act = state.fulfillment.pickup_point && state.fulfillment.pickup_point.id===p.id ? "chip active" : "chip";
+      const act = state.fulfillment.pickup_point && state.fulfillment.pickup_point.id===p.id ? "chip active":"chip";
       return `<div class="${act}" onclick='choosePickup(${JSON.stringify(p).replace(/"/g,"&quot;")})'>${p.title}</div>`;
     }).join("");
   }
-  function choosePickup(p){
-    state.fulfillment.pickup_point = p;
-    renderPickupPoints();
-  }
+  function choosePickup(p){ state.fulfillment.pickup_point=p; renderPickupPoints(); }
 
   // ===== Cart =====
-  function removeFromCartIndex(i){
-    if (i>=0 && i<state.cart.length){
-      state.cart.splice(i,1);
-      renderCart();
-    }
-  }
-
+  function removeFromCartIndex(i){ if (i>=0 && i<state.cart.length){ state.cart.splice(i,1); renderCart(); } }
   function renderCart(){
-    const box = document.getElementById("cartList");
-    if (!state.cart.length){
-      box.innerHTML = "<div class='muted'>Пока пусто</div>";
-    }else{
-      box.innerHTML = state.cart.map((x,i)=>{
-        const opts = [];
-        if (x.size) opts.push((x.size||"").toUpperCase());
-        if (x.addons && x.addons.length) opts.push(...x.addons);
-        const optText = opts.length?` <span class="muted">(${opts.join(", ")})</span>`:"";
-        return `
-          <div class="line">
-            <div style="display:flex;gap:10px;align-items:center">
-              <img class="mini" src="${x.img}" alt="">
-              <div>
-                <div style="font-weight:600">${x.name}${optText}</div>
-                <div class="muted">x${x.qty} • ${money(x.unit_price)}</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <div>${money(x.line_total)}</div>
-              <button class="btn" title="Удалить" onclick="removeFromCartIndex(${i})">✖</button>
-            </div>
+    const box=document.getElementById("cartList");
+    if (!state.cart.length){ box.innerHTML="<div class='muted'>Пока пусто</div>"; }
+    else {
+      box.innerHTML=state.cart.map((x,i)=>{
+        const opts=[]; if (x.size) opts.push((x.size||"").toUpperCase()); if (x.addons && x.addons.length) opts.push(...x.addons);
+        const optText=opts.length?` <span class="muted">(${opts.join(", ")})</span>`:"";
+        return `<div class="line">
+          <div style="display:flex;gap:10px;align-items:center">
+            <img class="mini" src="${x.img}" alt="">
+            <div><div style="font-weight:600">${x.name}${optText}</div><div class="muted">x${x.qty} • ${money(x.unit_price)}</div></div>
           </div>
-        `;
+          <div style="display:flex;gap:8px;align-items:center"><div>${money(x.line_total)}</div>
+            <button class="btn" title="Удалить" onclick="removeFromCartIndex(${i})">✖</button></div></div>`;
       }).join("");
     }
-
-    // пересчёт итогов и промо
-    const sub = cartSubtotal();
-    const disc = calcDiscount(sub);
-    const tot = sub - disc;
-
-    let promoLine = "";
-    if (state.promo){
-      promoLine = `<div class="muted" style="margin-top:4px">Промокод ${state.promo.code}: −${money(disc)}</div>`;
-    }
+    const sub=cartSubtotal(), disc=calcDiscount(sub), tot=sub-disc;
+    let promoLine=""; if (state.promo){ promoLine=`<div class="muted" style="margin-top:4px">Промокод ${state.promo.code}: −${money(disc)}</div>`; }
     document.getElementById("cartTotal").innerHTML = `Подытог: ${money(sub)}${promoLine}<div style="margin-top:4px;font-weight:700">Итого: ${money(tot)}</div>`;
   }
 
-  // ===== Send (не закрываем мини-аппу) =====
+  // ===== Send (мини-аппа НЕ закрывается) =====
   async function sendOrder(){
     if (!state.cart.length){ alert("Корзина пуста"); return; }
+    const addr=document.getElementById("addr").value.trim(); const comment=document.getElementById("comment").value.trim();
+    state.comment=comment; if (state.fulfillment.type==="delivery") state.fulfillment.address=addr;
 
-    // обновим адрес/комментарий в state
-    const addr = document.getElementById("addr").value.trim();
-    const comment = document.getElementById("comment").value.trim();
-    state.comment = comment;
-    if (state.fulfillment.type === "delivery") state.fulfillment.address = addr;
-
-    const subtotal = cartSubtotal();
-    const discount = calcDiscount(subtotal);
-    const total = subtotal - discount;
-
-    const payload = {
-      customer_name: "",  // при желании добавь форму
-      phone: "",
+    const subtotal=cartSubtotal(), discount=calcDiscount(subtotal), total=subtotal-discount;
+    const payload={
+      customer_name:"", phone:"",
       items: state.cart.map(({_key,img, ...rest})=>rest),
       subtotal, discount, total,
-      promo: state.promo ? state.promo.code : null,
+      promo: state.promo?state.promo.code:null,
       fulfillment: state.fulfillment,
       comment
     };
 
-    const insideTG = !!(tg && typeof tg.sendData === "function");
+    const insideTG = !!(tg && typeof tg.sendData==="function");
     if (insideTG){
       try{
         tg.HapticFeedback?.impactOccurred?.("light");
         tg.sendData(JSON.stringify(payload));      // уходит боту
-        state.cart = [];                           // чистим UI
-        renderCart();
-        showToast("Заказ отправлен боту ✅");
-      }catch(e){
-        tg.showAlert && tg.showAlert("Ошибка отправки: " + e);
-      }
-    }else{
+        state.cart=[]; renderCart();
+        showToast("Заказ отправлен боту ✅");      // Остаёмся на странице
+      }catch(e){ tg.showAlert && tg.showAlert("Ошибка отправки: "+e); }
+    } else {
       console.log("Payload preview:", payload);
-      alert("Откройте мини-апп через Telegram (кнопка у бота). В браузере отправка недоступна.");
+      alert("Откройте мини-аппу через Telegram (кнопка у бота). В браузере отправка недоступна.");
     }
   }
 
@@ -462,7 +350,7 @@
     renderPromos();
     selectCategory("coffee");
     renderPickupPoints();
-    setFulfillment("pickup"); // дефолт
+    setFulfillment("pickup");
     renderItems(); renderDetails(); renderCart();
   })();
 </script>
