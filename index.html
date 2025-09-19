@@ -23,17 +23,22 @@
     .line{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #242a32}
     .line:last-child{border-bottom:none}
     .muted{color:var(--muted)}
-    .chip{padding:8px 10px;border:1px solid var(--chip);border-radius:12px;text-align:center;cursor:pointer}
+    .chip{padding:8px 10px;border:1px solid var(--chip);border-radius:12px;text-align:center;cursor:pointer;user-select:none}
     .chip.active{border-color:var(--primary);background:var(--chip-active)}
     .qty{display:flex;align-items:center;gap:8px}
     .qty .btn{width:40px;height:40px}
     img.item{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:12px;border:1px solid var(--stroke);background:#0a0c0e}
     .mini{width:56px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--stroke);background:#0a0c0e}
     .footer{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(15,17,19,0) 0%, var(--bg) 40%);padding-top:10px}
-    /* toast */
     .toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:#0b1210;border:1px solid #13321f;color:#d1fae5;padding:10px 14px;border-radius:12px;display:none;z-index:9999}
     .toast.show{display:block;animation:fade 2.2s ease}
     @keyframes fade{0%{opacity:0;transform:translate(-50%,-8px)}10%,90%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
+    /* промо-карточки */
+    .promos{display:flex;gap:10px;overflow:auto;padding-bottom:6px;margin:8px -4px 0}
+    .promo{min-width:160px;background:#111418;border:1px solid var(--stroke);border-radius:12px;padding:8px}
+    .promo img{width:100%;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--stroke)}
+    .promo .tag{display:inline-block;background:#0f172a;color:#cbd5e1;border:1px solid #243146;border-radius:8px;padding:2px 6px;font-size:12px;margin-top:6px}
+    input[type="text"], textarea{width:100%;background:#0f1216;color:#e6e9ed;border:1px solid #2a2f36;border-radius:10px;padding:8px}
   </style>
 </head>
 <body>
@@ -41,6 +46,12 @@
   <div id="toast" class="toast">Заказ отправлен боту ✅</div>
 
   <h1>Кофеяна у Андрея</h1>
+
+  <!-- Акции -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="badge">Акции</div>
+    <div class="promos" id="promoList"></div>
+  </div>
 
   <div class="row">
     <div class="card" style="flex:1.2">
@@ -60,7 +71,35 @@
     <div class="card" style="min-width:320px">
       <div class="badge">Корзина</div>
       <div id="cartList" style="margin-top:10px"></div>
-      <div id="cartTotal" style="margin-top:8px;font-weight:700;font-size:18px">Итого: 0₸</div>
+
+      <!-- Способ получения -->
+      <div style="margin-top:12px">
+        <div class="badge">Получение</div>
+        <div class="row" style="margin:8px 0">
+          <div class="chip" id="chipPickup" onclick="setFulfillment('pickup')">Самовывоз</div>
+          <div class="chip" id="chipDelivery" onclick="setFulfillment('delivery')">Доставка</div>
+        </div>
+
+        <div id="pickupBlock" style="display:none; gap:8px; margin:6px 0">
+          <div class="muted" style="margin-bottom:6px">Точка самовывоза:</div>
+          <div class="row" style="flex-wrap:wrap">
+            <!-- заполним программно по PICKUP_POINTS -->
+            <div id="pickupPoints" class="row" style="gap:8px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+
+        <div id="deliveryBlock" style="display:none; margin:6px 0">
+          <div class="muted" style="margin-bottom:6px">Адрес доставки:</div>
+          <input type="text" id="addr" placeholder="Улица, дом, подъезд, квартира"/>
+        </div>
+
+        <div style="margin-top:8px">
+          <div class="muted" style="margin-bottom:6px">Комментарий (необязательно):</div>
+          <textarea id="comment" rows="2" placeholder="Например: позвонить за 10 минут"></textarea>
+        </div>
+      </div>
+
+      <div id="cartTotal" style="margin-top:10px;font-weight:700;font-size:18px">Итого: 0₸</div>
       <div class="footer">
         <button class="btn primary" style="width:100%;padding:12px" onclick="sendOrder()">Отправить</button>
       </div>
@@ -69,15 +108,13 @@
 </div>
 
 <script>
-  // ===== Реальные изображения (royalty-free) =====
+  // ===== Изображения (royalty-free) =====
   const IMAGES = {
-    // Кофе
     "Эспрессо": "https://upload.wikimedia.org/wikipedia/commons/4/45/A_small_cup_of_coffee.JPG",
     "Американо": "https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=1200&auto=format&fit=crop",
     "Капучино": "https://images.unsplash.com/photo-1503481766315-7a586b20f66b?q=80&w=1200&auto=format&fit=crop",
     "Латте": "https://images.unsplash.com/photo-1461988091159-192b6df7054f?q=80&w=1200&auto=format&fit=crop",
     "Флэт уайт": "https://images.unsplash.com/photo-1534687941688-651ccaafbff2?q=80&w=1200&auto=format&fit=crop",
-    // Закуски
     "Круассан": "https://images.unsplash.com/photo-1512058564366-18510be2db19?q=80&w=1200&auto=format&fit=crop",
     "Чизкейк": "https://images.unsplash.com/photo-1509358271058-acd22cc93898?q=80&w=1200&auto=format&fit=crop",
     "Маффин шоколадный": "https://images.unsplash.com/photo-1588196749597-9ff075ee6b5b?q=80&w=1200&auto=format&fit=crop",
@@ -114,6 +151,20 @@
     {title:"Сироп карамель", price:150},
   ];
 
+  // Точки самовывоза
+  const PICKUP_POINTS = [
+    {id:"center", title:"Центр — ул. Байтурсынова, 10"},
+    {id:"uni",    title:"Университет — пр. Абая, 25"},
+    {id:"mall",   title:"ТРЦ — пр. Аль-Фараби, 3"},
+  ];
+
+  // Промо-акции (микро-карточки)
+  const PROMOS = [
+    {code:"WELCOME10", title:"Добро пожаловать!", img:"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1200&auto=format&fit=crop", discountPct:10},
+    {code:"LATTE5",    title:"-5% на Латте", img:"https://images.unsplash.com/photo-1529070538774-1843cb3265df?q=80&w=1200&auto=format&fit=crop", discountPct:5},
+    {code:"SWEET7",    title:"Десерты -7%", img:"https://images.unsplash.com/photo-1488477181946-6428a0291777?q=80&w=1200&auto=format&fit=crop", discountPct:7},
+  ];
+
   // ===== State =====
   let state = {
     category: "coffee",
@@ -121,7 +172,10 @@
     size: "m",
     addons: [],
     qty: 1,
-    cart: []
+    cart: [],
+    fulfillment: { type: "pickup", pickup_point: PICKUP_POINTS[0] }, // по умолчанию
+    promo: null,   // {code, discountPct}
+    comment: ""
   };
 
   const tg = window.Telegram?.WebApp;
@@ -132,13 +186,42 @@
     (addIdx||[]).forEach(i=>p+=ADDONS[i].price);
     return p;
   }
-  function cartTotal(){ return state.cart.reduce((s,x)=>s+x.line_total,0); }
-  function showToast(msg="Заказ отправлен боту ✅"){
+  function cartSubtotal(){ return state.cart.reduce((s,x)=>s+x.line_total,0); }
+  function calcDiscount(subtotal){
+    if (!state.promo) return 0;
+    return Math.round(subtotal * (state.promo.discountPct/100));
+  }
+  function cartTotal(){
+    const sub = cartSubtotal();
+    return sub - calcDiscount(sub);
+  }
+  function showToast(msg="Готово"){
     const t = document.getElementById("toast");
     t.textContent = msg;
-    t.classList.remove("show");
-    void t.offsetWidth; // reflow
-    t.classList.add("show");
+    t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  }
+
+  // ===== Promos =====
+  function renderPromos(){
+    const el = document.getElementById("promoList");
+    el.innerHTML = PROMOS.map(p=>`
+      <div class="promo">
+        <img src="${p.img}" alt="${p.title}">
+        <div style="font-weight:700;margin-top:6px">${p.title}</div>
+        <div class="tag">−${p.discountPct}%</div>
+        <div style="margin-top:6px">
+          <button class="btn" onclick='applyPromo(${JSON.stringify(p).replace(/"/g,"&quot;")})'>
+            Применить
+          </button>
+        </div>
+      </div>
+    `).join("");
+  }
+  function applyPromo(p){
+    state.promo = p;
+    renderCart();
+    showToast(`Промокод применён: −${p.discountPct}%`);
+    try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
   }
 
   // ===== Catalog =====
@@ -148,8 +231,7 @@
     state.size = (cat==="coffee") ? "m" : null;
     state.addons = [];
     state.qty = 1;
-    renderItems();
-    renderDetails();
+    renderItems(); renderDetails();
   }
 
   function renderItems(){
@@ -257,6 +339,34 @@
     try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
   }
 
+  // ===== Fulfillment =====
+  function setFulfillment(type){
+    if (type==="pickup"){
+      state.fulfillment = { type:"pickup", pickup_point: state.fulfillment.pickup_point || PICKUP_POINTS[0] };
+      document.getElementById("pickupBlock").style.display = "block";
+      document.getElementById("deliveryBlock").style.display = "none";
+      document.getElementById("chipPickup").classList.add("active");
+      document.getElementById("chipDelivery").classList.remove("active");
+    }else{
+      state.fulfillment = { type:"delivery", address: document.getElementById("addr").value || "" };
+      document.getElementById("pickupBlock").style.display = "none";
+      document.getElementById("deliveryBlock").style.display = "block";
+      document.getElementById("chipPickup").classList.remove("active");
+      document.getElementById("chipDelivery").classList.add("active");
+    }
+  }
+  function renderPickupPoints(){
+    const box = document.getElementById("pickupPoints");
+    box.innerHTML = PICKUP_POINTS.map(p=>{
+      const act = state.fulfillment.pickup_point && state.fulfillment.pickup_point.id===p.id ? "chip active" : "chip";
+      return `<div class="${act}" onclick='choosePickup(${JSON.stringify(p).replace(/"/g,"&quot;")})'>${p.title}</div>`;
+    }).join("");
+  }
+  function choosePickup(p){
+    state.fulfillment.pickup_point = p;
+    renderPickupPoints();
+  }
+
   // ===== Cart =====
   function removeFromCartIndex(i){
     if (i>=0 && i<state.cart.length){
@@ -292,41 +402,67 @@
         `;
       }).join("");
     }
-    document.getElementById("cartTotal").innerText = "Итого: " + money(cartTotal());
+
+    // пересчёт итогов и промо
+    const sub = cartSubtotal();
+    const disc = calcDiscount(sub);
+    const tot = sub - disc;
+
+    let promoLine = "";
+    if (state.promo){
+      promoLine = `<div class="muted" style="margin-top:4px">Промокод ${state.promo.code}: −${money(disc)}</div>`;
+    }
+    document.getElementById("cartTotal").innerHTML = `Подытог: ${money(sub)}${promoLine}<div style="margin-top:4px;font-weight:700">Итого: ${money(tot)}</div>`;
   }
 
-  // ===== Send (НЕ закрываем мини-апку) =====
+  // ===== Send (не закрываем мини-аппу) =====
   async function sendOrder(){
     if (!state.cart.length){ alert("Корзина пуста"); return; }
 
+    // обновим адрес/комментарий в state
+    const addr = document.getElementById("addr").value.trim();
+    const comment = document.getElementById("comment").value.trim();
+    state.comment = comment;
+    if (state.fulfillment.type === "delivery") state.fulfillment.address = addr;
+
+    const subtotal = cartSubtotal();
+    const discount = calcDiscount(subtotal);
+    const total = subtotal - discount;
+
     const payload = {
-      customer_name: "",
+      customer_name: "",  // при желании добавь форму
       phone: "",
       items: state.cart.map(({_key,img, ...rest})=>rest),
-      total: cartTotal()
+      subtotal, discount, total,
+      promo: state.promo ? state.promo.code : null,
+      fulfillment: state.fulfillment,
+      comment
     };
 
     const insideTG = !!(tg && typeof tg.sendData === "function");
     if (insideTG){
       try{
         tg.HapticFeedback?.impactOccurred?.("light");
-        tg.sendData(JSON.stringify(payload));     // отправка в бота
-        state.cart = [];
+        tg.sendData(JSON.stringify(payload));      // уходит боту
+        state.cart = [];                           // чистим UI
         renderCart();
-        showToast("Заказ отправлен боту ✅");     // оставляем страницу открытой
+        showToast("Заказ отправлен боту ✅");
       }catch(e){
         tg.showAlert && tg.showAlert("Ошибка отправки: " + e);
       }
     }else{
       console.log("Payload preview:", payload);
-      alert("Откройте мини-апку через Telegram (кнопка у бота). В браузере отправка недоступна.");
+      alert("Откройте мини-апп через Telegram (кнопка у бота). В браузере отправка недоступна.");
     }
   }
 
   // ===== Init =====
   (function init(){
     try{ tg?.expand(); tg?.ready(); tg?.MainButton?.hide(); }catch{}
+    renderPromos();
     selectCategory("coffee");
+    renderPickupPoints();
+    setFulfillment("pickup"); // дефолт
     renderItems(); renderDetails(); renderCart();
   })();
 </script>
