@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Кофеяна у Андрея — Mini App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial; background:#0f1113; color:#eaecee}
+    .wrap{max-width:960px;margin:0 auto;padding:16px}
+    h1{font-size:18px;margin:8px 0 16px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .card{background:#15181c;border:1px solid #1f2328;border-radius:16px;padding:12px;flex:1;min-width:260px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
+    .btn{border:1px solid #30363d;background:#1f2328;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .btn:active{transform:scale(.98)}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+    .grid{display:grid;gap:8px}
+    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+    .chip{padding:8px 10px;border:1px solid #30363d;border-radius:12px;cursor:pointer;text-align:center}
+    .chip.active{border-color:#3b82f6;background:#1e293b}
+    .qty{display:flex;align-items:center;gap:8px}
+    .qty button{width:36px;height:36px}
+    .line{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #2a2f36}
+    .total{font-weight:700;font-size:18px;margin-top:10px}
+    .footer{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(15,17,19,0) 0%, #0f1113 40%);padding:16px 0}
+    a{color:#93c5fd}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Кофеяна у Андрея</h1>
+
+  <div class="row">
+    <div class="card" id="catalog">
+      <div class="badge">Категории</div>
+      <div class="btn-row" style="margin:8px 0 12px">
+        <button class="btn" onclick="selectCategory('coffee')">☕ Кофе</button>
+        <button class="btn" onclick="selectCategory('snacks')">🥪 Закуски</button>
+      </div>
+      <div id="items"></div>
+    </div>
+
+    <div class="card" id="details" style="min-width:300px">
+      <div class="badge">Позиция</div>
+      <div id="detailsContent" style="margin-top:8px;color:#94a3b8">Выберите товар</div>
+    </div>
+
+    <div class="card" id="cart" style="min-width:300px">
+      <div class="badge">Корзина</div>
+      <div id="cartList" style="margin-top:8px"></div>
+      <div class="total" id="cartTotal">Итого: 0₸</div>
+      <div class="footer">
+        <button class="btn" onclick="sendOrder()" style="width:100%;padding:12px">Отправить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- ДАННЫЕ (должны совпадать с ботом) ----
+  const MENU = {
+    coffee: [
+      {name:"Эспрессо", price:900},
+      {name:"Американо", price:1000},
+      {name:"Капучино", price:1300},
+      {name:"Латте", price:1400},
+      {name:"Флэт уайт", price:1500},
+    ],
+    snacks: [
+      {name:"Круассан", price:900},
+      {name:"Чизкейк", price:1500},
+      {name:"Маффин шоколадный", price:800},
+      {name:"Сэндвич с индейкой", price:1700},
+    ],
+  };
+  const SIZES = {
+    s: {title:"S • 200 мл", delta:0},
+    m: {title:"M • 300 мл", delta:200},
+    l: {title:"L • 400 мл", delta:400},
+  };
+  const ADDONS = [
+    {title:"Доп. шот эспрессо", price:300},
+    {title:"Безлактозное молоко", price:200},
+    {title:"Сироп ваниль", price:150},
+    {title:"Сироп карамель", price:150},
+  ];
+
+  // ---- STATE ----
+  let state = {
+    category: "coffee",
+    selectedIdx: null,
+    size: "m",      // только для кофе
+    addons: [],     // индексы
+    qty: 1,
+    cart: []
+  };
+
+  function selectCategory(cat){
+    state.category = cat;
+    state.selectedIdx = null;
+    state.size = (cat==="coffee") ? "m" : null;
+    state.addons = [];
+    state.qty = 1;
+    renderItems();
+    renderDetails();
+  }
+
+  function renderItems(){
+    const items = MENU[state.category] || [];
+    const el = document.getElementById("items");
+    if (!items.length){
+      el.innerHTML = "<div style='color:#94a3b8'>Ассортимент пуст</div>";
+      return;
+    }
+    el.innerHTML = items.map((it, i)=>`
+      <div class="line">
+        <div>${it.name}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="opacity:.7">${it.price}₸</div>
+          <button class="btn" onclick="selectItem(${i})">Выбрать</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function selectItem(idx){
+    state.selectedIdx = idx;
+    state.size = (state.category==="coffee") ? (state.size||"m") : null;
+    state.addons = [];
+    state.qty = 1;
+    renderDetails();
+  }
+
+  function toggleSize(sz){
+    state.size = sz;
+    renderDetails();
+  }
+
+  function toggleAddon(i){
+    const pos = state.addons.indexOf(i);
+    if (pos>=0) state.addons.splice(pos,1); else state.addons.push(i);
+    renderDetails();
+  }
+
+  function changeQty(delta){
+    state.qty = Math.max(1, (state.qty||1)+delta);
+    renderDetails();
+  }
+
+  function calcUnitPrice(base, sizeKey, addonsIdx){
+    let price = base;
+    if (sizeKey) price += SIZES[sizeKey].delta;
+    (addonsIdx||[]).forEach(i => price += ADDONS[i].price);
+    return price;
+  }
+
+  function renderDetails(){
+    const box = document.getElementById("detailsContent");
+    const items = MENU[state.category] || [];
+    if (state.selectedIdx===null || !items[state.selectedIdx]){
+      box.innerHTML = "<div style='color:#94a3b8'>Выберите товар</div>";
+      return;
+    }
+    const it = items[state.selectedIdx];
+    const unit = calcUnitPrice(it.price, state.size, state.addons);
+
+    let sizesHtml = "";
+    if (state.category==="coffee"){
+      sizesHtml = `
+        <div class="grid cols-3" style="margin:8px 0 12px">
+          ${Object.keys(SIZES).map(k=>{
+            const a = (state.size===k) ? "chip active":"chip";
+            return `<div class="${a}" onclick="toggleSize('${k}')">${SIZES[k].title}</div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    let addonsHtml = "";
+    if (state.category==="coffee" && ADDONS.length){
+      addonsHtml = `
+        <div class="grid cols-2" style="margin:4px 0 12px">
+          ${ADDONS.map((a, i)=>{
+            const active = state.addons.includes(i) ? "chip active" : "chip";
+            return `<div class="${active}" onclick="toggleAddon(${i})">${a.title} (+${a.price}₸)</div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    box.innerHTML = `
+      <div style="font-weight:600">${it.name}</div>
+      <div style="opacity:.8">Базовая цена: ${it.price}₸</div>
+      ${sizesHtml}
+      ${addonsHtml}
+      <div class="qty" style="margin:12px 0">
+        <button class="btn" onclick="changeQty(-1)">–</button>
+        <div>${state.qty}</div>
+        <button class="btn" onclick="changeQty(1)">+</button>
+      </div>
+      <div style="margin:8px 0">Цена за 1: <b>${unit}₸</b></div>
+      <button class="btn" onclick="addToCart()" style="width:100%;padding:10px">Добавить в корзину</button>
+    `;
+  }
+
+  function addToCart(){
+    const items = MENU[state.category] || [];
+    if (state.selectedIdx===null || !items[state.selectedIdx]) return;
+    const it = items[state.selectedIdx];
+    const unit = calcUnitPrice(it.price, state.size, state.addons);
+    // склеиваем одинаковые позиции
+    const key = JSON.stringify({name:it.name, size:state.size, addons:[...state.addons].sort()});
+    const found = state.cart.find(x=>x._key===key);
+    if (found){
+      found.qty += state.qty;
+      found.line_total = found.unit_price * found.qty;
+    } else {
+      state.cart.push({
+        _key:key,
+        name: it.name,
+        size: state.size, // null для снеков
+        addons: state.addons.map(i=>ADDONS[i].title),
+        qty: state.qty,
+        unit_price: unit,
+        line_total: unit * state.qty,
+      });
+    }
+    renderCart();
+  }
+
+  function removeFromCart(k){
+    const idx = state.cart.findIndex(x=>x._key===k);
+    if (idx>=0){ state.cart.splice(idx,1); renderCart(); }
+  }
+
+  function cartTotal(){
+    return state.cart.reduce((s,x)=>s + x.line_total, 0);
+  }
+
+  function renderCart(){
+    const list = document.getElementById("cartList");
+    if (!state.cart.length){
+      list.innerHTML = "<div style='color:#94a3b8'>Пока пусто</div>";
+    } else {
+      list.innerHTML = state.cart.map(x=>{
+        const opts = [];
+        if (x.size){ opts.push((x.size||"").toUpperCase()); }
+        if (x.addons && x.addons.length){ opts.push(...x.addons); }
+        const optText = opts.length ? ` (${opts.join(", ")})` : "";
+        return `
+          <div class="line">
+            <div>${x.name}${optText}<div style="opacity:.7;font-size:12px">x${x.qty} • ${x.unit_price}₸</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div>${x.line_total}₸</div>
+              <button class="btn" onclick="removeFromCart('${x._key}')">✖</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+    document.getElementById("cartTotal").innerText = "Итого: " + cartTotal() + "₸";
+  }
+
+  async function sendOrder(){
+    if (!state.cart.length){
+      alert("Корзина пуста");
+      return;
+    }
+    // Можно добавить сбор имени/телефона через prompt (или отдельный экран)
+    const customer_name = "";
+    const phone = "";
+
+    const payload = {
+      customer_name, phone,
+      items: state.cart.map(({_key, ...rest})=>rest),
+      total: cartTotal()
+    };
+
+    try{
+      const tg = window.Telegram?.WebApp;
+      if (!tg){ alert("Telegram WebApp SDK недоступен"); return; }
+      tg.HapticFeedback?.impactOccurred?.("light");
+      tg.sendData(JSON.stringify(payload));   // ← отправка в бота
+      tg.close();                             // можно закрыть мини-апп после отправки
+    }catch(e){
+      alert("Не удалось отправить заказ: " + e);
+    }
+  }
+
+  // init
+  (function init(){
+    const tg = window.Telegram?.WebApp;
+    try{
+      tg?.expand();
+      tg?.ready();
+      tg?.MainButton?.hide();
+      // цветовая схема под тему TG
+      const bg = tg?.themeParams?.bg_color;
+      if (bg){ document.body.style.background = bg; }
+    }catch{}
+    selectCategory("coffee");
+    renderItems();
+    renderDetails();
+    renderCart();
+  })();
+</script>
+</body>
+</html>
