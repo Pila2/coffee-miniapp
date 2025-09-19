@@ -1,32 +1,38 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
   <title>Кофеяна у Андрея — Mini App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Telegram WebApp SDK -->
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial; background:#0f1113; color:#eaecee}
-    .wrap{max-width:960px;margin:0 auto;padding:16px}
-    h1{font-size:18px;margin:8px 0 16px}
+    :root{
+      --bg:#0f1113; --card:#15181c; --stroke:#1f2328; --muted:#94a3b8; --text:#eaecee;
+      --primary:#3b82f6; --chip:#30363d; --chip-active:#1e293b;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    h1{margin:0 0 12px;font-size:20px}
+    .grid{display:grid;gap:12px}
+    .cols-3{grid-template-columns:repeat(3,1fr)}
+    .cols-2{grid-template-columns:repeat(2,1fr)}
     .row{display:flex;gap:12px;flex-wrap:wrap}
-    .card{background:#15181c;border:1px solid #1f2328;border-radius:16px;padding:12px;flex:1;min-width:260px}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
-    .btn{border:1px solid #30363d;background:#1f2328;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:12px;flex:1;min-width:300px}
+    .badge{display:inline-block;background:#1f2937;color:#cbd5e1;border-radius:999px;padding:4px 8px;font-size:12px}
+    .btn{border:1px solid var(--chip);background:#1f2328;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
     .btn:active{transform:scale(.98)}
-    .btn-row{display:flex;gap:8px;flex-wrap:wrap}
-    .grid{display:grid;gap:8px}
-    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
-    .grid.cols-2{grid-template-columns:repeat(2,1fr)}
-    .chip{padding:8px 10px;border:1px solid #30363d;border-radius:12px;cursor:pointer;text-align:center}
-    .chip.active{border-color:#3b82f6;background:#1e293b}
+    .btn.primary{border-color:transparent;background:var(--primary)}
+    .line{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #242a32}
+    .line:last-child{border-bottom:none}
+    .muted{color:var(--muted)}
+    .chip{padding:8px 10px;border:1px solid var(--chip);border-radius:12px;text-align:center;cursor:pointer}
+    .chip.active{border-color:var(--primary);background:var(--chip-active)}
     .qty{display:flex;align-items:center;gap:8px}
-    .qty button{width:36px;height:36px}
-    .line{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #2a2f36}
-    .total{font-weight:700;font-size:18px;margin-top:10px}
-    .footer{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(15,17,19,0) 0%, #0f1113 40%);padding:16px 0}
-    a{color:#93c5fd}
+    .qty .btn{width:40px;height:40px}
+    .footer{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(15,17,19,0) 0%, var(--bg) 40%);padding-top:10px}
+    img.item{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:12px;border:1px solid var(--stroke);background:#0a0c0e}
+    .mini{width:56px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--stroke);background:#0a0c0e}
   </style>
 </head>
 <body>
@@ -34,33 +40,47 @@
   <h1>Кофеяна у Андрея</h1>
 
   <div class="row">
-    <div class="card" id="catalog">
+    <div class="card" style="flex:1.2">
       <div class="badge">Категории</div>
-      <div class="btn-row" style="margin:8px 0 12px">
+      <div class="row" style="margin:10px 0 12px">
         <button class="btn" onclick="selectCategory('coffee')">☕ Кофе</button>
         <button class="btn" onclick="selectCategory('snacks')">🥪 Закуски</button>
       </div>
       <div id="items"></div>
     </div>
 
-    <div class="card" id="details" style="min-width:300px">
+    <div class="card" style="min-width:320px">
       <div class="badge">Позиция</div>
-      <div id="detailsContent" style="margin-top:8px;color:#94a3b8">Выберите товар</div>
+      <div id="details" style="margin-top:10px" class="muted">Выберите товар</div>
     </div>
 
-    <div class="card" id="cart" style="min-width:300px">
+    <div class="card" style="min-width:320px">
       <div class="badge">Корзина</div>
-      <div id="cartList" style="margin-top:8px"></div>
-      <div class="total" id="cartTotal">Итого: 0₸</div>
+      <div id="cartList" style="margin-top:10px"></div>
+      <div id="cartTotal" style="margin-top:8px;font-weight:700;font-size:18px">Итого: 0₸</div>
       <div class="footer">
-        <button class="btn" onclick="sendOrder()" style="width:100%;padding:12px">Отправить</button>
+        <button class="btn primary" style="width:100%;padding:12px" onclick="sendOrder()">Отправить</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  // ---- ДАННЫЕ (должны совпадать с ботом) ----
+  // --------- ДАННЫЕ ---------
+  // Картинки: сейчас используются плейсхолдеры. Можешь заменить src на свои файлы,
+  // если положишь их в /images и задеплоишь вместе с index.html (GitHub Pages тоже ок).
+  const IMAGES = {
+    "Эспрессо": "https://placehold.co/800x500/14181c/ffffff?text=%D0%AD%D1%81%D0%BF%D1%80%D0%B5%D1%81%D1%81%D0%BE",
+    "Американо": "https://placehold.co/800x500/14181c/ffffff?text=%D0%90%D0%BC%D0%B5%D1%80%D0%B8%D0%BA%D0%B0%D0%BD%D0%BE",
+    "Капучино": "https://placehold.co/800x500/14181c/ffffff?text=%D0%9A%D0%B0%D0%BF%D1%83%D1%87%D0%B8%D0%BD%D0%BE",
+    "Латте": "https://placehold.co/800x500/14181c/ffffff?text=%D0%9B%D0%B0%D1%82%D1%82%D0%B5",
+    "Флэт уайт": "https://placehold.co/800x500/14181c/ffffff?text=%D0%A4%D0%BB%D1%8D%D1%82+%D1%83%D0%B0%D0%B9%D1%82",
+    "Круассан": "https://placehold.co/800x500/14181c/ffffff?text=%D0%9A%D1%80%D1%83%D0%B0%D1%81%D1%81%D0%B0%D0%BD",
+    "Чизкейк": "https://placehold.co/800x500/14181c/ffffff?text=%D0%A7%D0%B8%D0%B7%D0%BA%D0%B5%D0%B9%D0%BA",
+    "Маффин шоколадный": "https://placehold.co/800x500/14181c/ffffff?text=%D0%9C%D0%B0%D1%84%D1%84%D0%B8%D0%BD",
+    "Сэндвич с индейкой": "https://placehold.co/800x500/14181c/ffffff?text=%D0%A1%D1%8D%D0%BD%D0%B4%D0%B2%D0%B8%D1%87",
+  };
+
   const MENU = {
     coffee: [
       {name:"Эспрессо", price:900},
@@ -76,11 +96,13 @@
       {name:"Сэндвич с индейкой", price:1700},
     ],
   };
+
   const SIZES = {
-    s: {title:"S • 200 мл", delta:0},
-    m: {title:"M • 300 мл", delta:200},
-    l: {title:"L • 400 мл", delta:400},
+    s:{title:"S • 200 мл", delta:0},
+    m:{title:"M • 300 мл", delta:200},
+    l:{title:"L • 400 мл", delta:400},
   };
+
   const ADDONS = [
     {title:"Доп. шот эспрессо", price:300},
     {title:"Безлактозное молоко", price:200},
@@ -88,16 +110,28 @@
     {title:"Сироп карамель", price:150},
   ];
 
-  // ---- STATE ----
+  // --------- STATE ---------
   let state = {
     category: "coffee",
     selectedIdx: null,
-    size: "m",      // только для кофе
-    addons: [],     // индексы
+    size: "m",
+    addons: [],
     qty: 1,
     cart: []
   };
 
+  // --------- HELPERS ---------
+  const tg = window.Telegram?.WebApp;
+  function money(x){ return `${x}₸`; }
+  function calcUnitPrice(base, sizeKey, addIdx){
+    let p = base;
+    if (sizeKey) p += SIZES[sizeKey].delta;
+    (addIdx||[]).forEach(i=>p+=ADDONS[i].price);
+    return p;
+  }
+  function cartTotal(){ return state.cart.reduce((s,x)=>s+x.line_total,0); }
+
+  // --------- CATALOG ---------
   function selectCategory(cat){
     state.category = cat;
     state.selectedIdx = null;
@@ -110,18 +144,19 @@
 
   function renderItems(){
     const items = MENU[state.category] || [];
-    const el = document.getElementById("items");
-    if (!items.length){
-      el.innerHTML = "<div style='color:#94a3b8'>Ассортимент пуст</div>";
-      return;
-    }
-    el.innerHTML = items.map((it, i)=>`
+    const box = document.getElementById("items");
+    if (!items.length){ box.innerHTML = "<div class='muted'>Ассортимент пуст</div>"; return; }
+
+    box.innerHTML = items.map((it, i)=>`
       <div class="line">
-        <div>${it.name}</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div style="opacity:.7">${it.price}₸</div>
-          <button class="btn" onclick="selectItem(${i})">Выбрать</button>
+        <div style="display:flex;gap:10px;align-items:center">
+          <img class="mini" src="${IMAGES[it.name]||'https://placehold.co/112x80'}" alt="${it.name}">
+          <div>
+            <div style="font-weight:600">${it.name}</div>
+            <div class="muted">${money(it.price)}</div>
+          </div>
         </div>
+        <button class="btn" onclick="selectItem(${i})">Выбрать</button>
       </div>
     `).join("");
   }
@@ -134,73 +169,54 @@
     renderDetails();
   }
 
-  function toggleSize(sz){
-    state.size = sz;
-    renderDetails();
-  }
-
+  // --------- DETAILS ---------
+  function toggleSize(k){ state.size = k; renderDetails(); }
   function toggleAddon(i){
     const pos = state.addons.indexOf(i);
     if (pos>=0) state.addons.splice(pos,1); else state.addons.push(i);
     renderDetails();
   }
-
-  function changeQty(delta){
-    state.qty = Math.max(1, (state.qty||1)+delta);
-    renderDetails();
-  }
-
-  function calcUnitPrice(base, sizeKey, addonsIdx){
-    let price = base;
-    if (sizeKey) price += SIZES[sizeKey].delta;
-    (addonsIdx||[]).forEach(i => price += ADDONS[i].price);
-    return price;
-  }
+  function changeQty(d){ state.qty = Math.max(1,(state.qty||1)+d); renderDetails(); }
 
   function renderDetails(){
-    const box = document.getElementById("detailsContent");
+    const el = document.getElementById("details");
     const items = MENU[state.category] || [];
     if (state.selectedIdx===null || !items[state.selectedIdx]){
-      box.innerHTML = "<div style='color:#94a3b8'>Выберите товар</div>";
-      return;
+      el.innerHTML = "<div class='muted'>Выберите товар</div>"; return;
     }
     const it = items[state.selectedIdx];
     const unit = calcUnitPrice(it.price, state.size, state.addons);
 
-    let sizesHtml = "";
-    if (state.category==="coffee"){
-      sizesHtml = `
-        <div class="grid cols-3" style="margin:8px 0 12px">
-          ${Object.keys(SIZES).map(k=>{
-            const a = (state.size===k) ? "chip active":"chip";
-            return `<div class="${a}" onclick="toggleSize('${k}')">${SIZES[k].title}</div>`;
-          }).join("")}
-        </div>`;
-    }
+    const img = IMAGES[it.name] || "https://placehold.co/800x500";
+    const sizes = (state.category==="coffee") ? `
+      <div class="grid cols-3" style="margin:10px 0">
+        ${Object.keys(SIZES).map(k=>{
+          const active = (state.size===k)?"chip active":"chip";
+          return `<div class="${active}" onclick="toggleSize('${k}')">${SIZES[k].title}</div>`;
+        }).join("")}
+      </div>` : "";
 
-    let addonsHtml = "";
-    if (state.category==="coffee" && ADDONS.length){
-      addonsHtml = `
-        <div class="grid cols-2" style="margin:4px 0 12px">
-          ${ADDONS.map((a, i)=>{
-            const active = state.addons.includes(i) ? "chip active" : "chip";
-            return `<div class="${active}" onclick="toggleAddon(${i})">${a.title} (+${a.price}₸)</div>`;
-          }).join("")}
-        </div>`;
-    }
+    const addons = (state.category==="coffee" && ADDONS.length) ? `
+      <div class="grid cols-2" style="margin:6px 0 10px">
+        ${ADDONS.map((a,i)=>{
+          const active = state.addons.includes(i)?"chip active":"chip";
+          return `<div class="${active}" onclick="toggleAddon(${i})">${a.title} (+${a.price}₸)</div>`;
+        }).join("")}
+      </div>` : "";
 
-    box.innerHTML = `
-      <div style="font-weight:600">${it.name}</div>
-      <div style="opacity:.8">Базовая цена: ${it.price}₸</div>
-      ${sizesHtml}
-      ${addonsHtml}
-      <div class="qty" style="margin:12px 0">
+    el.innerHTML = `
+      <img class="item" src="${img}" alt="${it.name}">
+      <div style="margin-top:10px;font-weight:700">${it.name}</div>
+      <div class="muted">Базовая цена: ${money(it.price)}</div>
+      ${sizes}
+      ${addons}
+      <div class="qty" style="margin:8px 0 6px">
         <button class="btn" onclick="changeQty(-1)">–</button>
         <div>${state.qty}</div>
         <button class="btn" onclick="changeQty(1)">+</button>
       </div>
-      <div style="margin:8px 0">Цена за 1: <b>${unit}₸</b></div>
-      <button class="btn" onclick="addToCart()" style="width:100%;padding:10px">Добавить в корзину</button>
+      <div style="margin:6px 0">Цена за 1: <b>${money(unit)}</b></div>
+      <button class="btn primary" style="width:100%;padding:10px" onclick="addToCart()">Добавить в корзину</button>
     `;
   }
 
@@ -209,101 +225,102 @@
     if (state.selectedIdx===null || !items[state.selectedIdx]) return;
     const it = items[state.selectedIdx];
     const unit = calcUnitPrice(it.price, state.size, state.addons);
-    // склеиваем одинаковые позиции
-    const key = JSON.stringify({name:it.name, size:state.size, addons:[...state.addons].sort()});
+
+    const key = JSON.stringify({name:it.name, size:state.category==="coffee"?state.size:null, addons:[...state.addons].sort()});
     const found = state.cart.find(x=>x._key===key);
     if (found){
       found.qty += state.qty;
       found.line_total = found.unit_price * found.qty;
-    } else {
+    }else{
       state.cart.push({
         _key:key,
         name: it.name,
-        size: state.size, // null для снеков
-        addons: state.addons.map(i=>ADDONS[i].title),
+        size: state.category==="coffee" ? state.size : null,
+        addons: state.category==="coffee" ? state.addons.map(i=>ADDONS[i].title) : [],
         qty: state.qty,
         unit_price: unit,
         line_total: unit * state.qty,
+        img: IMAGES[it.name] || "https://placehold.co/112x80"
       });
     }
     renderCart();
+    try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
   }
 
-  function removeFromCart(k){
-    const idx = state.cart.findIndex(x=>x._key===k);
-    if (idx>=0){ state.cart.splice(idx,1); renderCart(); }
-  }
-
-  function cartTotal(){
-    return state.cart.reduce((s,x)=>s + x.line_total, 0);
+  // --------- CART ---------
+  function removeFromCartIndex(i){
+    if (i>=0 && i<state.cart.length){
+      state.cart.splice(i,1);
+      renderCart();
+    }
   }
 
   function renderCart(){
-    const list = document.getElementById("cartList");
+    const box = document.getElementById("cartList");
     if (!state.cart.length){
-      list.innerHTML = "<div style='color:#94a3b8'>Пока пусто</div>";
-    } else {
-      list.innerHTML = state.cart.map(x=>{
+      box.innerHTML = "<div class='muted'>Пока пусто</div>";
+    }else{
+      box.innerHTML = state.cart.map((x,i)=>{
         const opts = [];
-        if (x.size){ opts.push((x.size||"").toUpperCase()); }
-        if (x.addons && x.addons.length){ opts.push(...x.addons); }
-        const optText = opts.length ? ` (${opts.join(", ")})` : "";
+        if (x.size) opts.push((x.size||"").toUpperCase());
+        if (x.addons && x.addons.length) opts.push(...x.addons);
+        const optText = opts.length?` <span class="muted">(${opts.join(", ")})</span>`:"";
         return `
           <div class="line">
-            <div>${x.name}${optText}<div style="opacity:.7;font-size:12px">x${x.qty} • ${x.unit_price}₸</div></div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <img class="mini" src="${x.img}" alt="">
+              <div>
+                <div style="font-weight:600">${x.name}${optText}</div>
+                <div class="muted">x${x.qty} • ${money(x.unit_price)}</div>
+              </div>
+            </div>
             <div style="display:flex;gap:8px;align-items:center">
-              <div>${x.line_total}₸</div>
-              <button class="btn" onclick="removeFromCart('${x._key}')">✖</button>
+              <div>${money(x.line_total)}</div>
+              <button class="btn" title="Удалить" onclick="removeFromCartIndex(${i})">✖</button>
             </div>
           </div>
         `;
       }).join("");
     }
-    document.getElementById("cartTotal").innerText = "Итого: " + cartTotal() + "₸";
+    document.getElementById("cartTotal").innerText = "Итого: " + money(cartTotal());
   }
 
+  // --------- SEND ---------
   async function sendOrder(){
-    if (!state.cart.length){
-      alert("Корзина пуста");
-      return;
-    }
-    // Можно добавить сбор имени/телефона через prompt (или отдельный экран)
-    const customer_name = "";
-    const phone = "";
+    if (!state.cart.length){ alert("Корзина пуста"); return; }
 
     const payload = {
-      customer_name, phone,
-      items: state.cart.map(({_key, ...rest})=>rest),
+      customer_name: "", // при желании спросим у юзера на отдельном экране
+      phone: "",
+      items: state.cart.map(({_key,img, ...rest})=>rest),
       total: cartTotal()
     };
 
-    try{
-      const tg = window.Telegram?.WebApp;
-      if (!tg){ alert("Telegram WebApp SDK недоступен"); return; }
-      tg.HapticFeedback?.impactOccurred?.("light");
-      tg.sendData(JSON.stringify(payload));   // ← отправка в бота
-      tg.close();                             // можно закрыть мини-апп после отправки
-    }catch(e){
-      alert("Не удалось отправить заказ: " + e);
+    const insideTG = !!(tg && typeof tg.sendData === "function");
+    if (insideTG){
+      try{
+        tg.HapticFeedback?.impactOccurred?.("light");
+        tg.sendData(JSON.stringify(payload));     // отправка в бота
+        state.cart = [];
+        renderCart();
+        tg.showAlert && tg.showAlert("Заказ отправлен боту ✅");
+        setTimeout(()=> tg.close && tg.close(), 300);
+      }catch(e){
+        tg.showAlert && tg.showAlert("Ошибка отправки: " + e);
+      }
+    }else{
+      console.log("Payload preview:", payload);
+      alert("Откройте мини-апку через Telegram (кнопка у бота). В браузере отправка недоступна.");
     }
   }
 
-  // init
+  // --------- INIT ---------
   (function init(){
-    const tg = window.Telegram?.WebApp;
-    try{
-      tg?.expand();
-      tg?.ready();
-      tg?.MainButton?.hide();
-      // цветовая схема под тему TG
-      const bg = tg?.themeParams?.bg_color;
-      if (bg){ document.body.style.background = bg; }
-    }catch{}
+    try{ tg?.expand(); tg?.ready(); tg?.MainButton?.hide(); }catch{}
     selectCategory("coffee");
-    renderItems();
-    renderDetails();
-    renderCart();
+    renderItems(); renderDetails(); renderCart();
   })();
 </script>
 </body>
 </html>
+
